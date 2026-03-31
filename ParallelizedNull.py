@@ -18,19 +18,7 @@ from utils import *
 from config import *
 #from OptimizeTest import compute_CS_grid, sample_tagged_times_ij, inside_dalitz
 
-print(s_plus)
 start_time = time.perf_counter()
-
-x_plus  = np.arange((2*mpi)**2/M**2, (m_b-mpi)**2/M**2, Grho/(2*M))
-s2_min = min(s_minus_min(x_plus*M**2))/M**2
-s2_max = max(s_minus_max(x_plus*M**2))/M**2
-
-x_minus = np.arange(s2_min, s2_max, Grho/(2*M))
-
-X_plus, X_minus = np.meshgrid(x_plus, x_minus)
-
-s_plus = X_plus * M**2
-s_minus = X_minus * M**2
 
 orig_dim = len(x_plus)
 
