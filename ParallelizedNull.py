@@ -84,7 +84,6 @@ def compute_emd_single(i, orig_dim, x_max, s, r, cfunc, sfunc, X_plus, X_minus, 
     return i, emd_c, emd_s, emd_cs
 
 from joblib import Parallel, delayed
-from tqdm import tqdm
 
 results = Parallel(n_jobs=-1, backend="loky")(   # n_jobs=-1 = all cores
     delayed(compute_emd_single)(
