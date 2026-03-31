@@ -1,0 +1,10 @@
+matplotlib == 3.10.8
+tqdm == 4.67.3
+numpy == 2.4.2
+scipy == 1.17.1
+pandas == 3.0.0
+sympy == 1.14.0
+seaborn == 0.13.2
+multiprocess == 0.70.18
+pot == 0.9.6.post1
+scikit-learn == 1.8.0
