@@ -13,68 +13,13 @@ import ot.plot
 from scipy.spatial import distance
 from sklearn.preprocessing import normalize
 import time
-from utils import sample_tagged_times_ij, inside_dalitz
+#from utils import sample_tagged_times_ij, inside_dalitz, mask
+from utils import *
+from config import *
 #from OptimizeTest import compute_CS_grid, sample_tagged_times_ij, inside_dalitz
 
+print(s_plus)
 start_time = time.perf_counter()
-
-A_plus_fit = 0.7791729178283396+0j
-A_minus_fit = 0.26905935233643435-0.5022575110480937j
-A_zero_fit = 0.32222083425921166+0.3379435952217144j
-Abar_plus_fit = 0.626809033217352+0j
-Abar_minus_fit = 0.585846194443791-0.7817779784075829j
-Abar_zero_fit = 0.2092787058892684+0.18609189622307143j
-
-x_max = 10
-n_iter = 1
-N_evt = 1000
-
-Gd=1.61e-6 #(MeV)
-Grho=147.4 #(MeV)
-md=1864.84
-mrho=775.26
-mpi0=135
-mpi=140
-
-gamma = 147.4         # MeV from rho
-dm = 2.11e-9          # 0.51 ps^-1
-m = 770
-m_b = 5280
-m_pi = 135
-
-M   = m_b      # your B mass
-m1  = mpi      # pi+
-m2  = mpi      # pi-
-m3  = mpi0     # pi0
-
-x_grid = np.linspace(0, 40, 30000)  # ps (for plotting/reference)
-Gamma = 2.746e-9 #MeV
-Delta_m = 2.11e-9          # MeV
-T=2*np.pi/Delta_m
-r= Delta_m*T
-s= T*Gamma
-C=0.3
-S=0.4
-
-def BW(s, m, gamma=147.4):
-    return 1 / (s - m**2 + 1j*m*gamma)
-
-def amp(s_plus, s_minus, A_plus, A_minus, A_zero, m):
-    s_0 = 1 - s_plus - s_minus
-    return BW(s_plus*m_b**2, m)*A_plus + BW(s_minus*m_b**2, m)*A_minus + BW(s_0*m_b**2, m)*A_zero
-
-N=400
-
-def E2_star(S_plus):
-    return np.emath.sqrt(S_plus)/2
-def E3_star(S_plus):
-    return (M**2 - S_plus - mpi**2)/(2*np.emath.sqrt(S_plus))
-
-def s_minus_min(s_plus):
-    return (E2_star(s_plus)+E3_star(s_plus))**2 - (np.emath.sqrt((E2_star(s_plus))**2-mpi**2) + (np.emath.sqrt((E3_star(s_plus))**2-mpi**2)))**2
-
-def s_minus_max(s_plus):
-    return (E2_star(s_plus)+E3_star(s_plus))**2 - (np.emath.sqrt((E2_star(s_plus))**2-mpi**2) - (np.emath.sqrt((E3_star(s_plus))**2-mpi**2)))**2
 
 x_plus  = np.arange((2*mpi)**2/M**2, (m_b-mpi)**2/M**2, Grho/(2*M))
 s2_min = min(s_minus_min(x_plus*M**2))/M**2
@@ -87,44 +32,9 @@ X_plus, X_minus = np.meshgrid(x_plus, x_minus)
 s_plus = X_plus * M**2
 s_minus = X_minus * M**2
 
-def plotted_c(A_plus, A_minus, A_zero,
-        Abar_plus, Abar_minus, Abar_zero):
-    A = amp(X_plus, X_minus, A_plus, A_minus, A_zero, m=m)
-    Abar = amp(X_plus, X_minus, Abar_plus, Abar_minus, Abar_zero, m=m)
-    lam = Abar/A
-    C = (1 - (np.abs(lam))**2)/(1 + (np.abs(lam))**2)
-    return C
-
-def plotted_s(A_plus, A_minus, A_zero,
-        Abar_plus, Abar_minus, Abar_zero):
-    A = amp(X_plus, X_minus, A_plus, A_minus, A_zero, m=m)
-    Abar = amp(X_plus, X_minus, Abar_plus, Abar_minus, Abar_zero, m=m)
-    lam = Abar/A
-    C = (1 - (np.abs(lam))**2)/(1 + (np.abs(lam))**2)
-    S = -2*np.imag(lam)/(1 + (np.abs(lam))**2)
-    return S
-
-cfunc = plotted_c(A_plus_fit, A_minus_fit, A_zero_fit,
-        Abar_plus_fit, Abar_minus_fit, Abar_zero_fit)
-
-sfunc = plotted_s(A_plus_fit, A_minus_fit, A_zero_fit,
-        Abar_plus_fit, Abar_minus_fit, Abar_zero_fit)
-
-list_c = np.zeros(100, dtype = object)
-list_s = np.zeros(100, dtype = object)
-list_prob = np.zeros(100, dtype = object)
-
-
 orig_dim = len(x_plus)
 
-
-mask1 = np.zeros_like(X_plus, dtype=bool)
-for i in tqdm(range(len(x_minus)), desc = "Masking"):
-    for j in range(len(x_plus)):
-        if not inside_dalitz(s_plus[i,j], s_minus[i,j], M, m1, m2, m3):
-            mask1[i,j] = True
-mask2 = mask1
-mask2 = mask2.reshape(1,len(x_plus)**2)
+mask1 = mask(x_plus, x_minus, s_plus, s_minus)
 mask1 = mask1.ravel()
 
 coords_s = np.stack([X_plus.ravel(), X_minus.ravel()], axis = 1)[~mask1]
@@ -132,21 +42,21 @@ M= ot.dist(coords_s, coords_s)
 M /= M.max()
 numThreads = 8
 numItermax = 1000000
-emds_c=np.zeros(1000)
-emds_s=np.zeros(1000)
-emds_cs=np.zeros(1000)
+emds_c=np.zeros(100)
+emds_s=np.zeros(100)
+emds_cs=np.zeros(100)
 
 import numpy as np
 import ot
 from tqdm import tqdm
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-n_datasets  = 1000
+n_datasets  = 100
 max_workers = 8   # set to os.cpu_count() to use all cores
 
 
 def compute_emd_single(i, orig_dim, x_max, s, r, cfunc, sfunc, X_plus, X_minus, mask1, M, numItermax):
-    """Single iteration — runs in a worker process."""
+    #Single iteration — runs in a worker process.
     x_s, _ = sample_tagged_times_ij(n_iter=1, N_evt=orig_dim**2, C=0.0, S=0.4, tag=1, x_max=x_max, rng=None)
     x_e, _ = sample_tagged_times_ij(n_iter=1, N_evt=orig_dim**2, C=0.0, S=0.0, tag=1, x_max=x_max, rng=None)
     x_cs,_ = sample_tagged_times_ij(n_iter=1, N_evt=orig_dim**2, C=0.7, S=0.4, tag=1, x_max=x_max, rng=None)
@@ -163,14 +73,10 @@ def compute_emd_single(i, orig_dim, x_max, s, r, cfunc, sfunc, X_plus, X_minus, 
     p_cos_mask_v = p_cos_v.ravel()[~mask1]
     p_sin_mask_v = p_sin_v.ravel()[~mask1]
 
-    print("Successfully masked.")
-
     p_exp_mask_v = p_exp_mask_v/np.sum(p_exp_mask_v)
     p_full_mask_v = p_full_mask_v/np.sum(p_full_mask_v)
     p_cos_mask_v = p_cos_mask_v/np.sum(p_cos_mask_v)
     p_sin_mask_v = p_sin_mask_v/np.sum(p_sin_mask_v)
-
-    print("Successfully normalized.")
 
     emd_c=ot.emd2(p_exp_mask_v, p_cos_mask_v, M, numItermax = numItermax)
     emd_s=ot.emd2(p_exp_mask_v, p_sin_mask_v, M, numItermax = numItermax)
@@ -204,3 +110,5 @@ end_time = time.perf_counter()
 run_time = end_time - start_time
 
 print(f"Time taken : {run_time:.6f} s")
+
+

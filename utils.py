@@ -15,7 +15,7 @@ from sklearn.preprocessing import normalize
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
-import config
+from config import *
 
 from config import (x_max, n_iter, N_evt, M, mpi, mpi0, Grho, s, r, A_plus_fit,
     A_zero_fit, A_minus_fit, Abar_plus_fit, Abar_zero_fit, Abar_minus_fit)
@@ -104,20 +104,22 @@ def s_minus_max(s_plus):
 
 # ----Dalitz variables -------
 
-x_plus  = np.arange((2*mpi)**2/M**2, (M-mpi)**2/M**2, Grho/(4*M))
+x_plus  = np.arange((2*mpi)**2/M**2, (M-mpi)**2/M**2, Grho/(2*M))
 s2_min = min(s_minus_min(x_plus*M**2))/M**2
 s2_max = max(s_minus_max(x_plus*M**2))/M**2
 
-x_minus = np.arange(s2_min, s2_max, Grho/(4*M))
+x_minus = np.arange(s2_min, s2_max, Grho/(2*M))
 
 X_plus, X_minus = np.meshgrid(x_plus, x_minus)
 
 s_plus = X_plus * M**2
 s_minus = X_minus * M**2
 
+orig_dim = len(x_plus)
+
 # ----Masking ---------
 
-def mask():
+def mask(x_plus, x_minus, s_plus, s_minus):
     mask1 = np.zeros_like(X_plus, dtype=bool)
     for i in tqdm(range(len(x_minus)), desc = "Masking"):
         for j in range(len(x_plus)):
@@ -156,6 +158,12 @@ def plotted_s(A_plus, A_minus, A_zero,
     C = (1 - (np.abs(lam))**2)/(1 + (np.abs(lam))**2)
     S = -2*np.imag(lam)/(1 + (np.abs(lam))**2)
     return S
+
+cfunc = plotted_c(A_plus_fit, A_minus_fit, A_zero_fit,
+        Abar_plus_fit, Abar_minus_fit, Abar_zero_fit)
+
+sfunc = plotted_s(A_plus_fit, A_minus_fit, A_zero_fit,
+        Abar_plus_fit, Abar_minus_fit, Abar_zero_fit)
 
 # ----------Calculate C and S from Lapalace transform ------------
 

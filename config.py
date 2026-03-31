@@ -25,9 +25,9 @@ m_b = 5280
 m_pi = 135
 
 M   = m_b      # your B mass
-m1  = mpi      # pi+
-m2  = mpi      # pi-
-m3  = mpi0     # pi0
+m1  = 140      # pi+
+m2  = 140      # pi-
+m3  = 135     # pi0
 
 x_grid = np.linspace(0, 40, 30000) # (for plotting/reference)
 Gamma = 2.746e-9 #MeV
@@ -37,3 +37,4 @@ r= Delta_m*T
 s= T*Gamma
 C=0.3
 S=0.4
+
