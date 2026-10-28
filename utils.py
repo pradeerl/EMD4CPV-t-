@@ -9,11 +9,12 @@ from sympy import Symbol,integrate,exp,cos,sin,I,simplify
 import seaborn as sns
 from multiprocess import Pool
 import ot
+import cmath
 import ot.plot
 from scipy.spatial import distance
 from sklearn.preprocessing import normalize
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
+#from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from config import *
 
@@ -84,12 +85,12 @@ def sample_tagged_times_ij(n_iter, N_evt, C, S, tag, x_max, rng=None):
 
 # -------Amplitude and Dalitz limits -------------
 
-def BW(s, m, gamma=147.4):
-    return 1 / (s - m**2 + 1j*m*gamma)
+def BW(s, m, gamma=147.4/M):
+    return 1 / (M**2*(s - m**2 + 1j*m*gamma))
 
 def amp(s_plus, s_minus, A_plus, A_minus, A_zero, m):
     s_0 = 1 - s_plus - s_minus
-    return BW(s_plus*M**2, m)*A_plus + BW(s_minus*M**2, m)*A_minus + BW(s_0*M**2, m)*A_zero
+    return BW(s_plus/M**2, m/M)*A_plus + BW(s_minus/M**2, m/M)*A_minus + BW(s_0/M**2, m/M)*A_zero
 
 def E2_star(S_plus):
     return np.emath.sqrt(S_plus)/2
@@ -104,28 +105,30 @@ def s_minus_max(s_plus):
 
 # ----Dalitz variables -------
 
-x_plus  = np.arange((2*mpi)**2/M**2, (M-mpi)**2/M**2, Grho/(2*M))
+x_plus  = np.arange((2*mpi)**2/M**2, (M-mpi)**2/M**2, Grho/(M))
 s2_min = min(s_minus_min(x_plus*M**2))/M**2
 s2_max = max(s_minus_max(x_plus*M**2))/M**2
 
-x_minus = np.arange(s2_min, s2_max, Grho/(2*M))
+x_minus = np.arange(s2_min, s2_max, Grho/(M))
 
 X_plus, X_minus = np.meshgrid(x_plus, x_minus)
 
 s_plus = X_plus * M**2
 s_minus = X_minus * M**2
+s_zero  = M**2 - s_plus - s_minus
 
 orig_dim = len(x_plus)
 
 # ----Masking ---------
 
-def mask(x_plus, x_minus, s_plus, s_minus):
+def mask(x_plus, x_minus, s_plus, s_minus, X_plus):
     mask1 = np.zeros_like(X_plus, dtype=bool)
     for i in tqdm(range(len(x_minus)), desc = "Masking"):
         for j in range(len(x_plus)):
             if not inside_dalitz(s_plus[i,j], s_minus[i,j], M, m1, m2, m3):
                 mask1[i,j] = True
     return mask1
+
 
 def inside_dalitz(s_plus, s_minus, M, m1, m2, m3):
     s0 = M**2 - s_plus - s_minus
@@ -164,6 +167,12 @@ cfunc = plotted_c(A_plus_fit, A_minus_fit, A_zero_fit,
 
 sfunc = plotted_s(A_plus_fit, A_minus_fit, A_zero_fit,
         Abar_plus_fit, Abar_minus_fit, Abar_zero_fit)
+
+def c_toy(s_plus, s_minus, n, m):
+    return s_plus * s_minus * (1-s_plus-s_minus)*np.cos(n*np.pi*(s_plus-s_minus))*np.sin(m*np.pi*(s_plus+s_minus))
+def s_toy(s_plus, s_minus, n, m):
+    return s_plus * s_minus * (1-s_plus-s_minus)*np.sin(n*np.pi*(s_plus-s_minus))*np.sin(m*np.pi*(s_plus+s_minus))
+
 
 # ----------Calculate C and S from Lapalace transform ------------
 
@@ -229,3 +238,58 @@ def compute_CS_grid(cfunc, sfunc, x_max, n_iter, N_evt, s, r, tag=-1):
             C_grid[i, j] = C_ij
             S_grid[i, j] = S_ij
     return C_grid, S_grid
+
+def CS(i):
+    og = lam(i).shape
+    temp = lam(i).reshape(og[0]*og[1])
+    graph_s = np.zeros(len(temp))
+    graph_c = (1 - np.abs(lam(i))**2)/(1+np.abs(lam(i))**2)
+    for j in range(len(temp)):
+        graph_s[j] = (2*np.imag(temp[j]))/(1+np.abs(temp[j])**2)
+    graph_s = graph_s.reshape(og)
+    return graph_c.ravel(), graph_s.ravel()
+
+def CS_mix(i):
+    og = lam_mix(i).shape
+    temp = lam_mix(i).reshape(og[0]*og[1])
+    graph_s = np.zeros(len(temp))
+    graph_c = (1 - np.abs(lam_mix(i))**2)/(1+np.abs(lam_mix(i))**2)
+    for j in range(len(temp)):
+        graph_s[j] = (2*np.imag(temp[j]))/(1+np.abs(temp[j])**2)
+    graph_s = graph_s.reshape(og)
+    return graph_c.ravel(), graph_s.ravel()
+
+def weak_num(i):
+    weak_og = np.array([0, 0, i*np.pi/100])
+    weak = weak_og[:, np.newaxis, np.newaxis]
+    weak_final = np.broadcast_to(weak, (3, x_plus.shape[0], x_plus.shape[0]))
+    return weak_final
+
+def delta(s_plus):
+    return np.arctan(m*Gamma/(s_plus - m**2))
+
+def phase(i, tag):
+    #gam = np.array([-np.pi/1000, -np.pi/, i*2*np.pi/1000], dtype= object).reshape(3,1,1)
+    gam = tag*weak_num(i)+np.array([delta(s_plus),delta(s_minus),delta(M**2-s_plus-s_minus)],dtype =float)
+    #.reshape(3,1,1)
+    return gam
+
+def lam(i):
+    g = np.array([3e-2, 3e-2, 3e-2]).reshape(3,1,1)
+    h = np.array([3e-2, 3e-2, 3e-2]).reshape(3,1,1)
+    #*np.exp(1j*np.array(gam, dtype = float)+1j*np.array([delta(s_plus),delta(s_minus),delta(1-s_plus-s_minus)],dtype =float))
+    lden = lnum = np.array([np.abs(BW(s_plus  / M**2, m/M)), np.abs(BW(s_minus / M**2, m/M)), np.abs(BW((M**2-s_plus-s_minus) / M**2, m/M))])
+
+    #lden = np.array([np.abs(BW(s_plus  / M**2, m/M))*Abar_plus_fit, np.abs(BW(s_minus / M**2, m/M))*Abar_minus_fit, np.abs(BW((1-s_plus-s_minus) * M**2, m/M))*Abar_zero_fit])
+
+    gam = phase(i, 1)
+    gambar = phase(i, -1)
+    a = np.sum(g*h*lnum*np.exp(1j*np.array(gam, dtype = float)), axis = 0)
+        #+1j*np.array([delta(s_plus),delta(s_minus),delta(1-s_plus-s_minus)],dtype =float)), axis = 0)
+    abar = np.sum(g*h*lden*np.exp(1j*np.array(gambar, dtype = float)), axis = 0)
+        #+1j*np.array([delta(s_plus),delta(s_minus),delta(1-s_plus-s_minus)],dtype =float)), axis = 0)
+    lam = abar/a
+    return lam
+
+def lam_mix(phase):
+    return lam(0)*cmath.exp(-1j*phase)

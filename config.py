@@ -22,19 +22,19 @@ gamma = 147.4         # MeV from rho
 dm = 2.11e-9          # 0.51 ps^-1
 m = 770
 m_b = 5280
-m_pi = 135
+m_pi = 140
 
 M   = m_b      # your B mass
 m1  = 140      # pi+
 m2  = 140      # pi-
-m3  = 135     # pi0
+m3  = 135      # pi0
 
 x_grid = np.linspace(0, 40, 30000) # (for plotting/reference)
 Gamma = 2.746e-9 #MeV
 Delta_m = 2.11e-9          # MeV
-T=2*np.pi/Delta_m
-r= Delta_m*T
-s= T*Gamma
-C=0.3
-S=0.4
+T = 2*np.pi/Delta_m
+r = Delta_m*T
+s = T*Gamma
+#C = 0.3
+#S = 0.4
 
